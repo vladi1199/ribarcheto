@@ -7,8 +7,7 @@ from dotenv import load_dotenv
 # Зареждаме променливите от .env файл
 load_dotenv()
 
-# Определяне на базовата папка динамично
-base_path = os.getenv('BASE_PATH', '/default/path')
+base_path = os.getenv('BASE_PATH') if os.getenv('GITHUB_ACTIONS') != 'true' else os.getcwd()
 
 # Функция за четене на SKU кодове от CSV файл
 def read_sku_codes_from_csv(file_path):
