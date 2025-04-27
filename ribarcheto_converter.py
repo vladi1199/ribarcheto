@@ -1,12 +1,13 @@
 import csv
 import xml.etree.ElementTree as ET
 import os
+from dotenv import load_dotenv
+
+# Зареждаме променливите от .env файл
+load_dotenv()
 
 # Определяне на базовата папка динамично
-if os.getenv('GITHUB_ACTIONS') == 'true':
-    base_path = "."
-else:
-    base_path = "/Users/vladimir/Desktop/Python/Наличности/Рибачето"
+base_path = os.getenv('BASE_PATH', '/default/path')
 
 def csv_to_xml(csv_file, xml_file):
     if not os.path.exists(csv_file):
