@@ -32,7 +32,12 @@ async def search_and_get_product_link(session, sku_code):
     search_url = f"https://www.ribarcheto.bg/index.php?route=product/search&search={sku_code}"
     headers = {"User-Agent": "Mozilla/5.0"}
     async with session.get(search_url, headers=headers) as response:
-        soup = BeautifulSoup(await response.text(), 'html.parser')
+        content = await response.read()
+        encoding = response.charset or 'utf-8'  # Get the encoding from the response headers
+        try:
+            soup = BeautifulSoup(content.decode(encoding), 'html.parser')
+        except UnicodeDecodeError:
+            soup = BeautifulSoup(content.decode('ISO-8859-1'), 'html.parser')  # Fallback to a different encoding
         product_div = soup.find('div', class_='product-thumb')
         if product_div:
             return product_div.find('a')['href']
@@ -41,7 +46,12 @@ async def search_and_get_product_link(session, sku_code):
 # Function to check product availability
 async def check_product_availability(session, product_url):
     async with session.get(product_url) as response:
-        soup = BeautifulSoup(await response.text(), 'html.parser')
+        content = await response.read()
+        encoding = response.charset or 'utf-8'  # Get the encoding from the response headers
+        try:
+            soup = BeautifulSoup(content.decode(encoding), 'html.parser')
+        except UnicodeDecodeError:
+            soup = BeautifulSoup(content.decode('ISO-8859-1'), 'html.parser')  # Fallback to a different encoding
         availability_span = soup.find('span', class_='tb_stock_status_in_stock')
         if availability_span:
             return "Available"
