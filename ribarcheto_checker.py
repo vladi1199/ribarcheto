@@ -1,6 +1,5 @@
 import csv
-import asyncio
-import aiohttp
+import requests
 from bs4 import BeautifulSoup
 import os
 from dotenv import load_dotenv
@@ -28,35 +27,25 @@ def read_sku_codes_from_csv(file_path):
     return sku_codes
 
 # Function to extract product link
-async def search_and_get_product_link(session, sku_code):
+def search_and_get_product_link(sku_code):
     search_url = f"https://www.ribarcheto.bg/index.php?route=product/search&search={sku_code}"
     headers = {"User-Agent": "Mozilla/5.0"}
-    async with session.get(search_url, headers=headers) as response:
-        content = await response.read()
-        encoding = response.charset or 'utf-8'  # Get the encoding from the response headers
-        try:
-            soup = BeautifulSoup(content.decode(encoding), 'html.parser')
-        except UnicodeDecodeError:
-            soup = BeautifulSoup(content.decode('ISO-8859-1'), 'html.parser')  # Fallback to a different encoding
-        product_div = soup.find('div', class_='product-thumb')
-        if product_div:
-            return product_div.find('a')['href']
+    response = requests.get(search_url, headers=headers)
+    soup = BeautifulSoup(response.text, 'html.parser')
+    product_div = soup.find('div', class_='product-thumb')
+    if product_div:
+        return product_div.find('a')['href']
     return None
 
 # Function to check product availability
-async def check_product_availability(session, product_url):
-    async with session.get(product_url) as response:
-        content = await response.read()
-        encoding = response.charset or 'utf-8'  # Get the encoding from the response headers
-        try:
-            soup = BeautifulSoup(content.decode(encoding), 'html.parser')
-        except UnicodeDecodeError:
-            soup = BeautifulSoup(content.decode('ISO-8859-1'), 'html.parser')  # Fallback to a different encoding
-        availability_span = soup.find('span', class_='tb_stock_status_in_stock')
-        if availability_span:
-            return "Available"
-        else:
-            return "Out of stock"
+def check_product_availability(product_url):
+    response = requests.get(product_url)
+    soup = BeautifulSoup(response.text, 'html.parser')
+    availability_span = soup.find('span', class_='tb_stock_status_in_stock')
+    if availability_span:
+        return "Available"
+    else:
+        return "Out of stock"
 
 # Function to save results to CSV file
 def save_results_to_csv(results, file_path):
@@ -68,34 +57,26 @@ def save_results_to_csv(results, file_path):
             writer.writerow(result)
 
 # Main function
-async def main():
+def main():
     sku_list_file = os.path.join(base_path, "sku_list.csv")
     results_file_path = os.path.join(base_path, "results.csv")
     
     sku_codes = read_sku_codes_from_csv(sku_list_file)
     
     results = []
-    async with aiohttp.ClientSession() as session:
-        tasks = []
-        for sku in sku_codes:
-            print(f"Searching for model: {sku}")
-            tasks.append(process_sku(session, sku, results))
+    for sku in sku_codes:
+        print(f"Searching for model: {sku}")
+        product_link = search_and_get_product_link(sku)
         
-        await asyncio.gather(*tasks)
-
+        if product_link:
+            print(f"Found link: {product_link}")
+            availability = check_product_availability(product_link)
+            results.append([sku, availability])
+        else:
+            results.append([sku, "Out of stock"])
+    
     save_results_to_csv(results, results_file_path)
     print(f"Results saved to: {results_file_path}")
 
-# Function to process each SKU
-async def process_sku(session, sku, results):
-    product_link = await search_and_get_product_link(session, sku)
-    if product_link:
-        print(f"Found link: {product_link}")
-        availability = await check_product_availability(session, product_link)
-        results.append([sku, availability])
-    else:
-        results.append([sku, "Out of stock"])
-
-# Run the main function asynchronously
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
