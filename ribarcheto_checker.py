@@ -3,6 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 import os
 from dotenv import load_dotenv
+import urllib.parse  # Importing urllib to properly encode URLs
 
 # Зареждаме променливите от .env файл
 load_dotenv()
@@ -29,8 +30,9 @@ def read_sku_codes_from_csv(file_path):
 # Function to extract product link
 def search_and_get_product_link(sku_code):
     search_url = f"https://www.ribarcheto.bg/index.php?route=product/search&search={sku_code}"
+    search_url_encoded = urllib.parse.quote(search_url, safe=':/?=&')
     headers = {"User-Agent": "Mozilla/5.0"}
-    response = requests.get(search_url, headers=headers)
+    response = requests.get(search_url_encoded, headers=headers)
     soup = BeautifulSoup(response.text, 'html.parser')
     product_div = soup.find('div', class_='product-thumb')
     if product_div:
