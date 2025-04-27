@@ -1,5 +1,6 @@
 import csv
-import requests
+import asyncio
+import aiohttp
 from bs4 import BeautifulSoup
 import os
 from dotenv import load_dotenv
@@ -27,25 +28,25 @@ def read_sku_codes_from_csv(file_path):
     return sku_codes
 
 # Function to extract product link
-def search_and_get_product_link(sku_code):
+async def search_and_get_product_link(session, sku_code):
     search_url = f"https://www.ribarcheto.bg/index.php?route=product/search&search={sku_code}"
     headers = {"User-Agent": "Mozilla/5.0"}
-    response = requests.get(search_url, headers=headers)
-    soup = BeautifulSoup(response.text, 'html.parser')
-    product_div = soup.find('div', class_='product-thumb')
-    if product_div:
-        return product_div.find('a')['href']
+    async with session.get(search_url, headers=headers) as response:
+        soup = BeautifulSoup(await response.text(), 'html.parser')
+        product_div = soup.find('div', class_='product-thumb')
+        if product_div:
+            return product_div.find('a')['href']
     return None
 
 # Function to check product availability
-def check_product_availability(product_url):
-    response = requests.get(product_url)
-    soup = BeautifulSoup(response.text, 'html.parser')
-    availability_span = soup.find('span', class_='tb_stock_status_in_stock')
-    if availability_span:
-        return "Available"
-    else:
-        return "Out of stock"
+async def check_product_availability(session, product_url):
+    async with session.get(product_url) as response:
+        soup = BeautifulSoup(await response.text(), 'html.parser')
+        availability_span = soup.find('span', class_='tb_stock_status_in_stock')
+        if availability_span:
+            return "Available"
+        else:
+            return "Out of stock"
 
 # Function to save results to CSV file
 def save_results_to_csv(results, file_path):
@@ -57,26 +58,34 @@ def save_results_to_csv(results, file_path):
             writer.writerow(result)
 
 # Main function
-def main():
+async def main():
     sku_list_file = os.path.join(base_path, "sku_list.csv")
     results_file_path = os.path.join(base_path, "results.csv")
     
     sku_codes = read_sku_codes_from_csv(sku_list_file)
     
     results = []
-    for sku in sku_codes:
-        print(f"Searching for model: {sku}")
-        product_link = search_and_get_product_link(sku)
+    async with aiohttp.ClientSession() as session:
+        tasks = []
+        for sku in sku_codes:
+            print(f"Searching for model: {sku}")
+            tasks.append(process_sku(session, sku, results))
         
-        if product_link:
-            print(f"Found link: {product_link}")
-            availability = check_product_availability(product_link)
-            results.append([sku, availability])
-        else:
-            results.append([sku, "Out of stock"])
-    
+        await asyncio.gather(*tasks)
+
     save_results_to_csv(results, results_file_path)
     print(f"Results saved to: {results_file_path}")
 
+# Function to process each SKU
+async def process_sku(session, sku, results):
+    product_link = await search_and_get_product_link(session, sku)
+    if product_link:
+        print(f"Found link: {product_link}")
+        availability = await check_product_availability(session, product_link)
+        results.append([sku, availability])
+    else:
+        results.append([sku, "Out of stock"])
+
+# Run the main function asynchronously
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
