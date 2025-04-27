@@ -45,9 +45,9 @@ def check_product_availability(product_url):
     soup = BeautifulSoup(response.text, 'html.parser')
     availability_span = soup.find('span', class_='tb_stock_status_in_stock')
     if availability_span:
-        return "Available"
+        return "Наличен"
     else:
-        return "Out of stock"
+        return "Изчерпан"
 
 # Function to save results to CSV file
 def save_results_to_csv(results, file_path):
