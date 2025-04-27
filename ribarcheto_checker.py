@@ -58,14 +58,26 @@ def save_results_to_csv(results, file_path):
         for result in results:
             writer.writerow(result)
 
+# Function to save "not found" products to a separate CSV file
+def save_not_found_skus_to_csv(not_found_skus, file_path):
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    with open(file_path, 'w', newline='', encoding='utf-8') as file:
+        writer = csv.writer(file)
+        writer.writerow(['SKU'])
+        for sku in not_found_skus:
+            writer.writerow([sku])
+
 # Main function
 def main():
     sku_list_file = os.path.join(base_path, "sku_list.csv")
     results_file_path = os.path.join(base_path, "results.csv")
+    not_found_file_path = os.path.join(base_path, "not_found_skus.csv")
     
     sku_codes = read_sku_codes_from_csv(sku_list_file)
     
     results = []
+    not_found_skus = []  # List to store SKUs not found
+    
     for sku in sku_codes:
         print(f"Searching for model: {sku}")
         product_link = search_and_get_product_link(sku)
@@ -75,10 +87,12 @@ def main():
             availability = check_product_availability(product_link)
             results.append([sku, availability])
         else:
-            results.append([sku, "Out of stock"])
+            not_found_skus.append(sku)  # Add SKU to not found list
     
     save_results_to_csv(results, results_file_path)
+    save_not_found_skus_to_csv(not_found_skus, not_found_file_path)  # Save not found SKUs
     print(f"Results saved to: {results_file_path}")
+    print(f"Not found SKUs saved to: {not_found_file_path}")
 
 if __name__ == "__main__":
     main()
