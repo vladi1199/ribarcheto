@@ -7,7 +7,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Проверка дали сме в GitHub Actions и определяне на базовата папка
-base_path = os.getenv('BASE_PATH') if os.getenv('GITHUB_ACTIONS') != 'true' else os.getcwd()
+if os.getenv('GITHUB_ACTIONS') == 'true':  # Check if running in GitHub Actions
+    base_path = os.getcwd()  # GitHub Actions uses the current working directory (root of repo)
+else:
+    base_path = '/Users/vladimir/Desktop/Python/Наличности/Рибачето'  # Local path for local execution
+
 
 def csv_to_xml(csv_file, xml_file):
     if not os.path.exists(csv_file):

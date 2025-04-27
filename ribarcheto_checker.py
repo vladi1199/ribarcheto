@@ -7,22 +7,26 @@ from dotenv import load_dotenv
 # Зареждаме променливите от .env файл
 load_dotenv()
 
-base_path = os.getenv('BASE_PATH') if os.getenv('GITHUB_ACTIONS') != 'true' else os.getcwd()
+# Dynamically set base path based on the environment
+if os.getenv('GITHUB_ACTIONS') == 'true':  # Check if running in GitHub Actions
+    base_path = os.getcwd()  # GitHub Actions uses the current working directory (root of repo)
+else:
+    base_path = '/Users/vladimir/Desktop/Python/Наличности/Рибачето'  # Local path for local execution
 
-# Функция за четене на SKU кодове от CSV файл
+# Function to read SKU codes from CSV file
 def read_sku_codes_from_csv(file_path):
     sku_codes = []
     try:
         with open(file_path, 'r', encoding='utf-8') as file:
             reader = csv.reader(file)
-            next(reader)  # Пропускане на заглавния ред
+            next(reader)  # Skip header row
             for row in reader:
                 sku_codes.append(row[0])
     except FileNotFoundError:
-        print(f"Файлът {file_path} не е намерен!")
+        print(f"File {file_path} not found!")
     return sku_codes
 
-# Функция за извличане на линк към продукта
+# Function to extract product link
 def search_and_get_product_link(sku_code):
     search_url = f"https://www.ribarcheto.bg/index.php?route=product/search&search={sku_code}"
     headers = {"User-Agent": "Mozilla/5.0"}
@@ -33,26 +37,26 @@ def search_and_get_product_link(sku_code):
         return product_div.find('a')['href']
     return None
 
-# Функция за проверка на наличността
+# Function to check product availability
 def check_product_availability(product_url):
     response = requests.get(product_url)
     soup = BeautifulSoup(response.text, 'html.parser')
     availability_span = soup.find('span', class_='tb_stock_status_in_stock')
     if availability_span:
-        return "Наличен"
+        return "Available"
     else:
-        return "Изчерпан"
+        return "Out of stock"
 
-# Функция за записване на резултатите в CSV файл
+# Function to save results to CSV file
 def save_results_to_csv(results, file_path):
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
     with open(file_path, 'w', newline='', encoding='utf-8') as file:
         writer = csv.writer(file)
-        writer.writerow(['SKU', 'Наличност'])
+        writer.writerow(['SKU', 'Availability'])
         for result in results:
             writer.writerow(result)
 
-# Основна функция
+# Main function
 def main():
     sku_list_file = os.path.join(base_path, "sku_list.csv")
     results_file_path = os.path.join(base_path, "results.csv")
@@ -61,18 +65,18 @@ def main():
     
     results = []
     for sku in sku_codes:
-        print(f"Започва търсене за модел: {sku}")
+        print(f"Searching for model: {sku}")
         product_link = search_and_get_product_link(sku)
         
         if product_link:
-            print(f"Намерен линк: {product_link}")
+            print(f"Found link: {product_link}")
             availability = check_product_availability(product_link)
             results.append([sku, availability])
         else:
-            results.append([sku, "Изчерпан"])
+            results.append([sku, "Out of stock"])
     
     save_results_to_csv(results, results_file_path)
-    print(f"Резултатите са записани в: {results_file_path}")
+    print(f"Results saved to: {results_file_path}")
 
 if __name__ == "__main__":
     main()
