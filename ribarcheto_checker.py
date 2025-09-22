@@ -14,7 +14,9 @@ if os.getenv('GITHUB_ACTIONS') == 'true':  # Check if running in GitHub Actions
 else:
     base_path = '/Users/vladimir/Desktop/Python/Наличности/Рибачето'  # Local path for local execution
 
+# =========================
 # Function to read SKU codes from CSV file
+# =========================
 def read_sku_codes_from_csv(file_path):
     sku_codes = []
     try:
@@ -27,7 +29,9 @@ def read_sku_codes_from_csv(file_path):
         print(f"File {file_path} not found!")
     return sku_codes
 
+# =========================
 # Function to extract product link
+# =========================
 def search_and_get_product_link(sku_code):
     search_url = f"https://www.ribarcheto.bg/index.php?route=product/search&search={sku_code}"
     search_url_encoded = urllib.parse.quote(search_url, safe=':/?=&')
@@ -39,9 +43,12 @@ def search_and_get_product_link(sku_code):
         return product_div.find('a')['href']
     return None
 
+# =========================
 # Function to check product availability
+# =========================
 def check_product_availability(product_url):
-    response = requests.get(product_url)
+    headers = {"User-Agent": "Mozilla/5.0"}
+    response = requests.get(product_url, headers=headers)
     soup = BeautifulSoup(response.text, 'html.parser')
     availability_span = soup.find('span', class_='tb_stock_status_in_stock')
     if availability_span:
@@ -49,16 +56,40 @@ def check_product_availability(product_url):
     else:
         return "Изчерпан"
 
+# =========================
+# Function to extract product price (as float in BGN)
+# =========================
+def get_product_price(product_url):
+    headers = {"User-Agent": "Mozilla/5.0"}
+    response = requests.get(product_url, headers=headers)
+    soup = BeautifulSoup(response.text, 'html.parser')
+    
+    price_container = soup.find('span', class_='price-regular')
+    if price_container:
+        integer_part = price_container.find('span', class_='tb_integer')
+        decimal_part = price_container.find('span', class_='tb_decimal')
+        if integer_part and decimal_part:
+            try:
+                price = float(f"{integer_part.text.strip()}.{decimal_part.text.strip()}")
+                return price
+            except ValueError:
+                return None
+    return None
+
+# =========================
 # Function to save results to CSV file
+# =========================
 def save_results_to_csv(results, file_path):
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
     with open(file_path, 'w', newline='', encoding='utf-8') as file:
         writer = csv.writer(file)
-        writer.writerow(['SKU', 'Availability'])
+        writer.writerow(['SKU', 'Availability', 'Price (BGN)'])  # вече имаме число
         for result in results:
             writer.writerow(result)
 
+# =========================
 # Function to save "not found" products to a separate CSV file
+# =========================
 def save_not_found_skus_to_csv(not_found_skus, file_path):
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
     with open(file_path, 'w', newline='', encoding='utf-8') as file:
@@ -67,7 +98,9 @@ def save_not_found_skus_to_csv(not_found_skus, file_path):
         for sku in not_found_skus:
             writer.writerow([sku])
 
+# =========================
 # Main function
+# =========================
 def main():
     sku_list_file = os.path.join(base_path, "sku_list.csv")
     results_file_path = os.path.join(base_path, "results.csv")
@@ -85,7 +118,8 @@ def main():
         if product_link:
             print(f"Found link: {product_link}")
             availability = check_product_availability(product_link)
-            results.append([sku, availability])
+            price = get_product_price(product_link)
+            results.append([sku, availability, price if price is not None else "Няма цена"])
         else:
             not_found_skus.append(sku)  # Add SKU to not found list
     
@@ -94,5 +128,6 @@ def main():
     print(f"Results saved to: {results_file_path}")
     print(f"Not found SKUs saved to: {not_found_file_path}")
 
+# =========================
 if __name__ == "__main__":
     main()
