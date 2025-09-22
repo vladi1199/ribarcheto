@@ -22,19 +22,24 @@ def csv_to_xml(csv_file, xml_file):
 
     with open(csv_file, encoding='utf-8') as f:
         reader = csv.reader(f)
-        headers = next(reader)
+        headers = next(reader)  # ['SKU', 'Availability', 'Price (BGN)']
         
         for row in reader:
             if not row:
                 continue
-            sku, availability = row[0], row[1]
+            sku = row[0]
+            availability = row[1]
+            price = row[2] if len(row) > 2 else ""  # ако няма цена -> празно
+
             item = ET.SubElement(root, 'item')
             ET.SubElement(item, 'sku').text = sku
             ET.SubElement(item, 'availability').text = availability
+            ET.SubElement(item, 'price').text = price  # добавяме цена
 
     tree = ET.ElementTree(root)
     tree.write(xml_file, encoding='utf-8', xml_declaration=True)
     print(f"✅ XML файлът е успешно създаден: {xml_file}")
+
 
 if __name__ == "__main__":
     csv_file = os.path.join(base_path, "results.csv")
