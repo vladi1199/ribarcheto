@@ -57,24 +57,27 @@ def check_product_availability(product_url):
         return "Изчерпан"
 
 # =========================
-# Function to extract product price (as float in BGN)
+# Function to extract product price (as float in EUR)
 # =========================
 def get_product_price(product_url):
     headers = {"User-Agent": "Mozilla/5.0"}
     response = requests.get(product_url, headers=headers)
     soup = BeautifulSoup(response.text, 'html.parser')
-    
+
     price_container = soup.find('span', class_='price-regular')
     if price_container:
-        integer_part = price_container.find('span', class_='tb_integer')
-        decimal_part = price_container.find('span', class_='tb_decimal')
-        if integer_part and decimal_part:
-            try:
-                price = float(f"{integer_part.text.strip()}.{decimal_part.text.strip()}")
-                return price
-            except ValueError:
-                return None
+        # Примерен текст: "€76.18 / 149.00лв."
+        price_text = price_container.get_text(strip=True)
+
+        try:
+            euro_part = price_text.split('/')[0]  # "€76.18 "
+            euro_value = euro_part.replace('€', '').strip()
+            return float(euro_value)
+        except (ValueError, IndexError):
+            return None
+
     return None
+
 
 # =========================
 # Function to save results to CSV file
